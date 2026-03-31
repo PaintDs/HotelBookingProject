@@ -115,7 +115,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<List<hotel>> call, Response<List<hotel>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    HotelAdapter adapter = new HotelAdapter(response.body());
+                    // Sửa dòng cũ thành:
+                    HotelAdapter adapter = new HotelAdapter(response.body(), lat, lng);
                     rv.setAdapter(adapter);
                 }
             }
@@ -132,7 +133,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<List<hotel>> call, Response<List<hotel>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    HotelAdapter adapter = new HotelAdapter(response.body());
+                    // Sửa dòng cũ thành (Truyền 0.0 vào để nó biết là mất định vị):
+                    HotelAdapter adapter = new HotelAdapter(response.body(), 0.0, 0.0);
                     rv.setAdapter(adapter);
                 }
             }
