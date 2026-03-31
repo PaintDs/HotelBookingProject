@@ -1,0 +1,63 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <ImageView
+        android:id="@+id/imgDetail"
+        android:layout_width="match_parent"
+        android:layout_height="250dp"
+        android:scaleType="centerCrop" />
+
+    <TextView
+        android:id="@+id/tvDetailName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginTop="16dp" />
+
+    <TextView
+        android:id="@+id/tvDetailPrice"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#FF0000"
+        android:textSize="20sp"
+        android:layout_marginTop="8dp" />
+
+    <TextView
+        android:id="@+id/tvDetailDesc"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Mô tả chi tiết khách sạn..." />
+    <EditText
+        android:id="@+id/edtCustomerName"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:hint="Nhập tên người đặt phòng..."
+        android:background="#E8E8E8"
+        android:textColor="#000000"          android:textColorHint="#888888"      android:padding="10dp"
+        android:layout_marginBottom="10dp"/>
+
+    <EditText
+        android:id="@+id/edtCccd"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:hint="Nhập số CCCD..."
+        android:inputType="number"
+        android:background="#E8E8E8"
+        android:textColor="#000000"          android:textColorHint="#888888"      android:padding="10dp"
+        android:layout_marginBottom="20dp"/>
+
+    <Button
+        android:id="@+id/btnBook"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:text="ĐẶT PHÒNG NGAY"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"          android:backgroundTint="#4CAF50"     android:elevation="8dp"              app:cornerRadius="15dp"              android:layout_marginTop="20dp" />
+</LinearLayout>
