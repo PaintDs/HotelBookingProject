@@ -16,15 +16,15 @@
         android:usesCleartextTraffic="true">
 
         <activity
-            android:name=".HistoryActivity"
+            android:name=".Activities.HistoryActivity"
             android:exported="false" />
 
         <activity
-            android:name=".DetailActivity"
+            android:name=".Activities.DetailActivity"
             android:exported="false" />
 
         <activity
-            android:name=".MainActivity"
+            android:name=".Activities.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
