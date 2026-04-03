@@ -3,6 +3,8 @@ package com.example.hotelbookingapp.Activities;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
@@ -21,10 +23,13 @@ import com.example.hotelbookingapp.R;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.example.hotelbookingapp.Adapter.HotelAdapter;
 import com.example.hotelbookingapp.Model.Hotel;
+import com.google.android.material.button.MaterialButton;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -33,154 +38,217 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity {
 
-    // Các biến quản lý cốt lõi của màn hình chính
     private ApiService apiService;
     private RecyclerView rv;
-    private FusedLocationProviderClient fusedLocationClient; // Thư viện định vị tối ưu nhất của Google
-    private static final int LOCATION_PERMISSION_CODE = 100; // Mã định danh cho luồng xin quyền GPS
+    private FusedLocationProviderClient fusedLocationClient;
+    private static final int LOCATION_PERMISSION_CODE = 100;
+
+    // --- BIẾN MỚI CHO TÍNH NĂNG FILTER ---
+    private List<Hotel> masterHotelList = new ArrayList<>(); // Biến giữ danh sách gốc 30 cái
+    private double currentLat = 0.0;
+    private double currentLng = 0.0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // =====================================================================
-        // 1. UI INITIALIZATION: Khởi tạo giao diện
-        // =====================================================================
         rv = findViewById(R.id.rvHotels);
         rv.setLayoutManager(new LinearLayoutManager(this));
 
-        // =====================================================================
-        // 2. HARDWARE SERVICE SETUP: Khởi tạo Dịch vụ Định vị
-        // Nhiệm vụ: Đánh thức FusedLocationProviderClient để chuẩn bị bắt tọa độ (kết hợp GPS, Wifi, 4G)
-        // =====================================================================
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
-        // =====================================================================
-        // 3. NETWORK SETUP: Cấu hình Retrofit gọi API
-        // =====================================================================
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(MyConfig.BASE_URL)
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
         apiService = retrofit.create(ApiService.class);
 
-        // =====================================================================
-        // 4. NAVIGATION BINDING: Lắng nghe sự kiện chuyển màn hình
-        // =====================================================================
-        Button btnOpenHistory = findViewById(R.id.btnOpenHistory);
-        btnOpenHistory.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, HistoryActivity.class);
-            startActivity(intent);
-        });
+        // --- GẮN SỰ KIỆN CHO CÁC NÚT BẤM KHU VỰC ---
+        setupFilterButtons();
 
-        // =====================================================================
-        // 5. BOOTSTRAP: Khởi động luồng nghiệp vụ chính của App
-        // Nhiệm vụ: Vừa vào app là phải check quyền GPS ngay để còn gọi API phù hợp
-        // =====================================================================
         checkLocationPermissionAndFetchData();
     }
 
     // =====================================================================
-    // VÙNG 1: QUẢN LÝ QUYỀN (PERMISSION HANDLING)
+    // --- TÍNH NĂNG MỚI: LOGIC LỌC DANH SÁCH (CLIENT-SIDE FILTERING) ---
     // =====================================================================
+    private void setupFilterButtons() {
+        findViewById(R.id.btnAll).setOnClickListener(v -> filterByDistrict("")); // Chuỗi rỗng là lấy tất cả
+        findViewById(R.id.btnHoanKiem).setOnClickListener(v -> filterByDistrict("Hoàn Kiếm"));
+        findViewById(R.id.btnBaDinh).setOnClickListener(v -> filterByDistrict("Ba Đình"));
+        findViewById(R.id.btnHaiBaTrung).setOnClickListener(v -> filterByDistrict("Hai Bà Trưng"));
+        findViewById(R.id.btnDongDa).setOnClickListener(v -> filterByDistrict("Đống Đa"));
+        findViewById(R.id.btnCauGiay).setOnClickListener(v -> filterByDistrict("Cầu Giấy"));
+        findViewById(R.id.btnTayHo).setOnClickListener(v -> filterByDistrict("Tây Hồ"));
+    }
 
-    // Kiểm tra và yêu cầu quyền truy cập vị trí (Runtime Permission)
+    private void filterByDistrict(String districtName) {
+        if (masterHotelList == null || masterHotelList.isEmpty()) {
+            Toast.makeText(this, "Dữ liệu chưa tải xong, vui lòng đợi!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        List<Hotel> filteredList = new ArrayList<>();
+        String search = removeAccent(districtName).trim(); // Dùng hàm không dấu nãy mình gửi
+
+        for (Hotel hotel : masterHotelList) {
+            String addrOrig = hotel.getAddress();
+            String addrNoAccent = removeAccent(addrOrig);
+
+            // LOG NÀY SẼ CHO BẠN BIẾT SỰ THẬT:
+            Log.d("DEBUG_FILTER", "Đang tìm: [" + search + "] trong địa chỉ: [" + addrNoAccent + "]");
+
+            if (search.isEmpty() || addrNoAccent.contains(search)) {
+                filteredList.add(hotel);
+            }
+        }
+
+        HotelAdapter adapter = new HotelAdapter(filteredList, currentLat, currentLng);
+        rv.setAdapter(adapter);
+
+        if (filteredList.isEmpty()) {
+            Toast.makeText(this, "Không tìm thấy khách sạn nào!", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // =====================================================================
+    // VÙNG QUẢN LÝ QUYỀN VÀ GỌI API (Đã tối ưu để lưu danh sách gốc)
+    // =====================================================================
     private void checkLocationPermissionAndFetchData() {
-        // Nếu Android phát hiện app chưa được cấp quyền Vị trí chính xác (ACCESS_FINE_LOCATION)
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // Hiển thị Popup hệ thống để hỏi xin quyền từ người dùng
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_CODE);
         } else {
-            // Đã có quyền từ những lần mở app trước -> Đi thẳng vào luồng lấy tọa độ
             getLocationAndCallApi();
         }
     }
 
-    // Lắng nghe quyết định của người dùng từ Popup xin quyền
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == LOCATION_PERMISSION_CODE) {
-            // Nếu người dùng bấm "Cho phép" (Allow)
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                getLocationAndCallApi(); // Tiếp tục luồng chính
+                getLocationAndCallApi();
             } else {
-                // FALLBACK: Người dùng bấm "Từ chối" (Deny)
-                // Kịch bản an toàn: Vẫn phải cho khách dùng app, nhưng tải danh sách không có khoảng cách
                 Toast.makeText(this, "Bị từ chối GPS, tải danh sách mặc định", Toast.LENGTH_SHORT).show();
                 fetchAllHotels();
             }
         }
     }
 
-    // =====================================================================
-    // VÙNG 2: TÍNH TOÁN TỌA ĐỘ VÀ GỌI API (CORE LOGIC)
-    // =====================================================================
-
-    // Trích xuất GPS hiện tại và quyết định luồng gọi API
     private void getLocationAndCallApi() {
-        // Check bảo mật bắt buộc của Android: Đảm bảo quyền vẫn còn trước khi chọc vào phần cứng
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return;
 
-        // Kêu gọi Google Play Services lấy vị trí cuối cùng được ghi nhận
         fusedLocationClient.getLastLocation().addOnSuccessListener(this, location -> {
             if (location != null) {
-                // LUỒNG CHÍNH (HAPPY PATH): Lấy thành công tọa độ thực tế
-                double lat = location.getLatitude();
-                double lng = location.getLongitude();
-
-                // Bắn tọa độ này lên Backend Python để Server tính toán "Đường chim bay"
-                fetchNearbyHotels(lat, lng);
+                currentLat = location.getLatitude();
+                currentLng = location.getLongitude();
+                fetchNearbyHotels(currentLat, currentLng);
             } else {
-                // LUỒNG PHỤ (FALLBACK PATH): Trả về null
-                // Nguyên nhân: Máy có cấp quyền app nhưng người dùng đang TẮT định vị GPS của điện thoại
-                Toast.makeText(this, "Không tìm thấy GPS, đang tải danh sách mặc định", Toast.LENGTH_SHORT).show();
-                fetchAllHotels(); // Tải danh sách chay không cần GPS
+                fetchAllHotels();
             }
         });
     }
 
-    // =====================================================================
-    // VÙNG 3: GIAO TIẾP MẠNG (NETWORK REQUESTS)
-    // =====================================================================
-
-    // Gọi API động: Truyền GPS để lấy danh sách khách sạn CÓ tính khoảng cách
     private void fetchNearbyHotels(double lat, double lng) {
         apiService.getNearbyHotels(lat, lng).enqueue(new Callback<List<Hotel>>() {
             @Override
             public void onResponse(Call<List<Hotel>> call, Response<List<Hotel>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    // Truyền thêm lat/lng vào Adapter để lát nữa bấm nút "Chỉ đường" nó còn có gốc để vẽ
-                    HotelAdapter adapter = new HotelAdapter(response.body(), lat, lng);
-                    rv.setAdapter(adapter);
+                    masterHotelList = response.body(); // LƯU VÀO BIẾN GỐC
+                    filterByDistrict(""); // Mặc định hiển thị tất cả
                 }
             }
             @Override
-            public void onFailure(Call<List<Hotel>> call, Throwable t) {
-                Log.e("API_ERR", "Lỗi mạng: " + t.getMessage());
-            }
+            public void onFailure(Call<List<Hotel>> call, Throwable t) {}
         });
     }
 
-    // Gọi API tĩnh (Dự phòng): Lấy danh sách khách sạn KHÔNG có khoảng cách
     private void fetchAllHotels() {
         apiService.getHotels().enqueue(new Callback<List<Hotel>>() {
             @Override
             public void onResponse(Call<List<Hotel>> call, Response<List<Hotel>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    // Truyền 0.0 vào tọa độ hiện tại, Adapter sẽ tự hiểu là mất định vị và ẩn dòng "Cách đây..."
-                    HotelAdapter adapter = new HotelAdapter(response.body(), 0.0, 0.0);
-                    rv.setAdapter(adapter);
+                    masterHotelList = response.body(); // LƯU VÀO BIẾN GỐC
+                    currentLat = 0.0; currentLng = 0.0;
+                    filterByDistrict(""); // Mặc định hiển thị tất cả
                 }
             }
             @Override
-            public void onFailure(Call<List<Hotel>> call, Throwable t) {
-                Log.e("API_ERR", "Lỗi mạng: " + t.getMessage());
-            }
+            public void onFailure(Call<List<Hotel>> call, Throwable t) {}
         });
+    }
+
+    // =====================================================================
+    // MENU BÊN TRÊN
+    // =====================================================================
+    @Override
+    public boolean onCreateOptionsMenu(android.view.Menu menu) {
+        getMenuInflater().inflate(R.menu.main_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull android.view.MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.menu_history) {
+            startActivity(new Intent(MainActivity.this, HistoryActivity.class));
+            return true;
+        } else if (id == R.id.menu_about) {
+            new android.app.AlertDialog.Builder(this)
+                    .setTitle("Về ứng dụng")
+                    .setMessage("Hotel Booking App v1.0\nPhát triển bởi [NgVanKhai]")
+                    .setPositiveButton("Đóng", null)
+                    .show();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+    // Hàm siêu đẳng: Biến "Tây Hồ" thành "tay ho", "Cầu Giấy" thành "cau giay"
+    // Hàm chuyển tiếng Việt có dấu thành không dấu
+    public String removeAccent(String s) {
+        if (s == null) return "";
+        String temp = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD);
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
+        return pattern.matcher(temp).replaceAll("").toLowerCase().replaceAll("đ", "d");
+    }
+    private void updateButtonStyles(Button selectedButton) {
+        // 1. Danh sách tất cả ID các nút menu của bạn
+        int[] btnIds = {R.id.btnAll, R.id.btnHoanKiem, R.id.btnBaDinh, R.id.btnTayHo, R.id.btnCauGiay, R.id.btnDongDa};
+
+        for (int id : btnIds) {
+            MaterialButton btn = findViewById(id);
+            if (btn == selectedButton) {
+                // Nút đang chọn: Nền xanh, chữ trắng
+                btn.setBackgroundColor(Color.parseColor("#4CAF50"));
+                btn.setTextColor(Color.WHITE);
+                btn.setStrokeColor(null);
+            } else {
+                // Nút không chọn: Nền trắng, viền xám, chữ xám
+                btn.setBackgroundColor(Color.TRANSPARENT);
+                btn.setTextColor(Color.parseColor("#555555"));
+                btn.setStrokeColor(ColorStateList.valueOf(Color.parseColor("#DDDDDD")));
+            }
+        }
+    }
+    private void updateMenuUI(MaterialButton selectedBtn) {
+        // Danh sách ID các nút
+        int[] ids = {R.id.btnAll, R.id.btnHoanKiem, R.id.btnBaDinh, R.id.btnTayHo};
+
+        for (int id : ids) {
+            MaterialButton btn = findViewById(id);
+            if (btn == selectedBtn) {
+                // Nút được chọn: Đổ nền xanh đặc, chữ trắng, mất viền
+                btn.setBackgroundColor(Color.parseColor("#4CAF50"));
+                btn.setTextColor(Color.WHITE);
+                btn.setStrokeWidth(0);
+            } else {
+                // Nút không chọn: Nền trắng, viền xám mảnh, chữ xám
+                btn.setBackgroundColor(Color.TRANSPARENT);
+                btn.setTextColor(Color.parseColor("#757575"));
+                btn.setStrokeColor(ColorStateList.valueOf(Color.parseColor("#DDDDDD")));
+                btn.setStrokeWidth(2); // Độ dày viền
+            }
+        }
     }
 }

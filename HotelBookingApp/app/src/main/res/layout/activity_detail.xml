@@ -1,63 +1,154 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:background="#FFFFFF">
 
-    <ImageView
-        android:id="@+id/imgDetail"
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="250dp"
-        android:scaleType="centerCrop" />
+        android:layout_height="280dp"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
+        <com.google.android.material.appbar.CollapsingToolbarLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:layout_scrollFlags="scroll|exitUntilCollapsed"
+            app:contentScrim="#4CAF50">
+            <ImageView
+                android:id="@+id/imgDetail"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/error_img" />
+        </com.google.android.material.appbar.CollapsingToolbarLayout>
+    </com.google.android.material.appbar.AppBarLayout>
 
-    <TextView
-        android:id="@+id/tvDetailName"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:layout_marginTop="16dp" />
-
-    <TextView
-        android:id="@+id/tvDetailPrice"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textColor="#FF0000"
-        android:textSize="20sp"
-        android:layout_marginTop="8dp" />
-
-    <TextView
-        android:id="@+id/tvDetailDesc"
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="Mô tả chi tiết khách sạn..." />
-    <EditText
-        android:id="@+id/edtCustomerName"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:hint="Nhập tên người đặt phòng..."
-        android:background="#E8E8E8"
-        android:textColor="#000000"          android:textColorHint="#888888"      android:padding="10dp"
-        android:layout_marginBottom="10dp"/>
+        android:layout_height="match_parent"
+        android:paddingBottom="100dp"
+        android:clipToPadding="false"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-    <EditText
-        android:id="@+id/edtCccd"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:hint="Nhập số CCCD..."
-        android:inputType="number"
-        android:background="#E8E8E8"
-        android:textColor="#000000"          android:textColorHint="#888888"      android:padding="10dp"
-        android:layout_marginBottom="20dp"/>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
 
-    <Button
+            <TextView
+                android:id="@+id/tvNameDetail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#1A1A1A"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical">
+                <RatingBar
+                    android:id="@+id/ratingBar"
+                    style="?android:attr/ratingBarStyleSmall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:numStars="5"
+                    android:progressTint="#FFC107" />
+                <TextView
+                    android:id="@+id/tvRatingText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="(4.8/5 - 120 đánh giá)"
+                    android:textColor="#757575"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvAddressDetail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="#4CAF50"
+                android:textSize="14sp"
+                android:textStyle="italic" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="20dp"
+                android:background="#EEEEEE" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Thông tin khách hàng"
+                android:textColor="#1A1A1A"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp"/>
+
+            <EditText
+                android:id="@+id/edtCustomerName"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:background="@drawable/edittext_border"
+                android:hint="Họ và tên người đặt"
+                android:textColor="#212121"
+                android:textColorHint="#9E9E9E"
+                android:paddingStart="16dp"
+                android:layout_marginBottom="12dp"
+                android:textSize="15sp" />
+
+            <EditText
+                android:id="@+id/edtCccd"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:background="@drawable/edittext_border"
+                android:hint="Số CCCD/Passport"
+                android:inputType="number"
+                android:textColor="#212121"
+                android:textColorHint="#9E9E9E"
+                android:paddingStart="16dp"
+                android:layout_marginBottom="25dp"
+                android:textSize="15sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Mô tả khách sạn"
+                android:textColor="#1A1A1A"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvDescriptionDetail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:lineSpacingExtra="7dp"
+                android:textColor="#444444"
+                android:textSize="15sp"
+                android:text="Đang tải thông tin mô tả chi tiết từ hệ thống..." />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnBook"
         android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:text="ĐẶT PHÒNG NGAY"
-        android:textSize="18sp"
+        android:layout_height="58dp"
+        android:layout_gravity="bottom"
+        android:layout_margin="16dp"
+        android:text="XÁC NHẬN ĐẶT PHÒNG"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
         android:textStyle="bold"
-        android:textColor="#FFFFFF"          android:backgroundTint="#4CAF50"     android:elevation="8dp"              app:cornerRadius="15dp"              android:layout_marginTop="20dp" />
-</LinearLayout>
+        app:cornerRadius="14dp"
+        app:backgroundTint="#4CAF50"
+        app:elevation="6dp" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

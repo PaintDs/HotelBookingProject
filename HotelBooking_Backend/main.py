@@ -80,9 +80,12 @@ def get_nearby_hotels(my_lat: float, my_lng: float, db: Session = Depends(get_db
             
            # Gom dữ liệu lại thành dictionary, lấy giá phòng từ cột price_per_night
             hotel_data = {
+                
                 "id": h.id,
                 "name": h.name,
-                "price_per_night": h.price_per_night,  # Sửa từ h.price thành h.price_per_night
+                "address": h.address,
+                "description": getattr(h, 'description', ''),
+                "price_per_night": h.price_per_night,  
                 "image_url": getattr(h, 'image_url', ''),
                 "lat": h.lat,
                 "lng": h.lng,
