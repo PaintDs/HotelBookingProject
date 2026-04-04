@@ -7,7 +7,6 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
-import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -16,19 +15,19 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.example.hotelbookingapp.API.ApiService;
 import com.example.hotelbookingapp.API.MyConfig;
+import com.example.hotelbookingapp.Adapter.HotelAdapter;
+import com.example.hotelbookingapp.Model.Hotel;
 import com.example.hotelbookingapp.R;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.material.button.MaterialButton;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import com.example.hotelbookingapp.Adapter.HotelAdapter;
-import com.example.hotelbookingapp.Model.Hotel;
-import com.google.android.material.button.MaterialButton;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -37,68 +36,80 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity {
+    // 1. Biến nhớ quận đang chọn (Quan trọng để giữ trạng thái khi reload)
+    private String currentSelectedDistrict = "";
 
     private ApiService apiService;
     private RecyclerView rv;
+    private SwipeRefreshLayout swipeRefreshLayout;
     private FusedLocationProviderClient fusedLocationClient;
-    private static final int LOCATION_PERMISSION_CODE = 100;
 
-    // --- BIẾN MỚI CHO TÍNH NĂNG FILTER ---
-    private List<Hotel> masterHotelList = new ArrayList<>(); // Biến giữ danh sách gốc 30 cái
+    private List<Hotel> masterHotelList = new ArrayList<>();
     private double currentLat = 0.0;
     private double currentLng = 0.0;
+    private static final int LOCATION_PERMISSION_CODE = 100;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Ánh xạ UI
         rv = findViewById(R.id.rvHotels);
+        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         rv.setLayoutManager(new LinearLayoutManager(this));
 
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        // Cấu hình SwipeRefresh
+        swipeRefreshLayout.setColorSchemeColors(Color.parseColor("#4CAF50"), Color.BLUE);
+        swipeRefreshLayout.setOnRefreshListener(() -> {
+            // Khi vuốt làm mới, giữ nguyên quận đang chọn nhưng tải lại data mới nhất
+            checkLocationPermissionAndFetchData();
+        });
 
+        // Network & GPS
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(MyConfig.BASE_URL)
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
         apiService = retrofit.create(ApiService.class);
 
-        // --- GẮN SỰ KIỆN CHO CÁC NÚT BẤM KHU VỰC ---
         setupFilterButtons();
+
+        // Mặc định làm sáng nút "Tất cả" khi mới vào App
+        updateMenuUI(findViewById(R.id.btnAll));
 
         checkLocationPermissionAndFetchData();
     }
 
     // =====================================================================
-    // --- TÍNH NĂNG MỚI: LOGIC LỌC DANH SÁCH (CLIENT-SIDE FILTERING) ---
+    // XỬ LÝ BỘ LỌC (Cập nhật để lưu trạng thái)
     // =====================================================================
     private void setupFilterButtons() {
-        findViewById(R.id.btnAll).setOnClickListener(v -> filterByDistrict("")); // Chuỗi rỗng là lấy tất cả
-        findViewById(R.id.btnHoanKiem).setOnClickListener(v -> filterByDistrict("Hoàn Kiếm"));
-        findViewById(R.id.btnBaDinh).setOnClickListener(v -> filterByDistrict("Ba Đình"));
-        findViewById(R.id.btnHaiBaTrung).setOnClickListener(v -> filterByDistrict("Hai Bà Trưng"));
-        findViewById(R.id.btnDongDa).setOnClickListener(v -> filterByDistrict("Đống Đa"));
-        findViewById(R.id.btnCauGiay).setOnClickListener(v -> filterByDistrict("Cầu Giấy"));
-        findViewById(R.id.btnTayHo).setOnClickListener(v -> filterByDistrict("Tây Hồ"));
+        // Mỗi khi click, gán giá trị vào currentSelectedDistrict để khi reload App sẽ nhớ
+        findViewById(R.id.btnAll).setOnClickListener(v -> handleFilterClick("", (MaterialButton) v));
+        findViewById(R.id.btnHoanKiem).setOnClickListener(v -> handleFilterClick("Hoàn Kiếm", (MaterialButton) v));
+        findViewById(R.id.btnBaDinh).setOnClickListener(v -> handleFilterClick("Ba Đình", (MaterialButton) v));
+        findViewById(R.id.btnHaiBaTrung).setOnClickListener(v -> handleFilterClick("Hai Bà Trưng", (MaterialButton) v));
+        findViewById(R.id.btnDongDa).setOnClickListener(v -> handleFilterClick("Đống Đa", (MaterialButton) v));
+        findViewById(R.id.btnCauGiay).setOnClickListener(v -> handleFilterClick("Cầu Giấy", (MaterialButton) v));
+        findViewById(R.id.btnTayHo).setOnClickListener(v -> handleFilterClick("Tây Hồ", (MaterialButton) v));
+    }
+
+    private void handleFilterClick(String district, MaterialButton btn) {
+        currentSelectedDistrict = district; // Ghi nhớ quận
+        filterByDistrict(district);        // Lọc danh sách
+        updateMenuUI(btn);                 // Đổi màu nút
     }
 
     private void filterByDistrict(String districtName) {
-        if (masterHotelList == null || masterHotelList.isEmpty()) {
-            Toast.makeText(this, "Dữ liệu chưa tải xong, vui lòng đợi!", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        if (masterHotelList == null || masterHotelList.isEmpty()) return;
 
         List<Hotel> filteredList = new ArrayList<>();
-        String search = removeAccent(districtName).trim(); // Dùng hàm không dấu nãy mình gửi
+        String search = removeAccent(districtName).trim();
 
         for (Hotel hotel : masterHotelList) {
-            String addrOrig = hotel.getAddress();
-            String addrNoAccent = removeAccent(addrOrig);
-
-            // LOG NÀY SẼ CHO BẠN BIẾT SỰ THẬT:
-            Log.d("DEBUG_FILTER", "Đang tìm: [" + search + "] trong địa chỉ: [" + addrNoAccent + "]");
-
+            String addrNoAccent = removeAccent(hotel.getAddress());
             if (search.isEmpty() || addrNoAccent.contains(search)) {
                 filteredList.add(hotel);
             }
@@ -106,15 +117,56 @@ public class MainActivity extends AppCompatActivity {
 
         HotelAdapter adapter = new HotelAdapter(filteredList, currentLat, currentLng);
         rv.setAdapter(adapter);
-
-        if (filteredList.isEmpty()) {
-            Toast.makeText(this, "Không tìm thấy khách sạn nào!", Toast.LENGTH_SHORT).show();
-        }
     }
 
     // =====================================================================
-    // VÙNG QUẢN LÝ QUYỀN VÀ GỌI API (Đã tối ưu để lưu danh sách gốc)
+    // QUẢN LÝ GỌI API (Sửa để nhớ Filter sau khi Reload)
     // =====================================================================
+    private void fetchNearbyHotels(double lat, double lng) {
+        swipeRefreshLayout.setRefreshing(true);
+        apiService.getNearbyHotels(lat, lng).enqueue(new Callback<List<Hotel>>() {
+            @Override
+            public void onResponse(Call<List<Hotel>> call, Response<List<Hotel>> response) {
+                swipeRefreshLayout.setRefreshing(false);
+                if (response.isSuccessful() && response.body() != null) {
+                    masterHotelList = response.body();
+
+                    // THAY ĐỔI: Thay vì mặc định "", dùng biến currentSelectedDistrict
+                    filterByDistrict(currentSelectedDistrict);
+                }
+            }
+            @Override
+            public void onFailure(Call<List<Hotel>> call, Throwable t) {
+                swipeRefreshLayout.setRefreshing(false);
+                Toast.makeText(MainActivity.this, "Lỗi kết nối Server!", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void fetchAllHotels() {
+        swipeRefreshLayout.setRefreshing(true);
+        apiService.getHotels().enqueue(new Callback<List<Hotel>>() {
+            @Override
+            public void onResponse(Call<List<Hotel>> call, Response<List<Hotel>> response) {
+                swipeRefreshLayout.setRefreshing(false);
+                if (response.isSuccessful() && response.body() != null) {
+                    masterHotelList = response.body();
+                    currentLat = 0.0; currentLng = 0.0;
+
+                    // THAY ĐỔI: Tự động lọc lại quận cũ sau khi tải xong data
+                    filterByDistrict(currentSelectedDistrict);
+                }
+            }
+            @Override
+            public void onFailure(Call<List<Hotel>> call, Throwable t) {
+                swipeRefreshLayout.setRefreshing(false);
+                Toast.makeText(MainActivity.this, "Lỗi kết nối Server!", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    // --- (Phần GPS, Menu, removeAccent giữ nguyên phía dưới) ---
+
     private void checkLocationPermissionAndFetchData() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_CODE);
@@ -123,22 +175,10 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == LOCATION_PERMISSION_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                getLocationAndCallApi();
-            } else {
-                Toast.makeText(this, "Bị từ chối GPS, tải danh sách mặc định", Toast.LENGTH_SHORT).show();
-                fetchAllHotels();
-            }
-        }
-    }
-
     private void getLocationAndCallApi() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return;
 
+        swipeRefreshLayout.setRefreshing(true);
         fusedLocationClient.getLastLocation().addOnSuccessListener(this, location -> {
             if (location != null) {
                 currentLat = location.getLatitude();
@@ -147,41 +187,34 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 fetchAllHotels();
             }
-        });
+        }).addOnFailureListener(e -> fetchAllHotels());
     }
 
-    private void fetchNearbyHotels(double lat, double lng) {
-        apiService.getNearbyHotels(lat, lng).enqueue(new Callback<List<Hotel>>() {
-            @Override
-            public void onResponse(Call<List<Hotel>> call, Response<List<Hotel>> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    masterHotelList = response.body(); // LƯU VÀO BIẾN GỐC
-                    filterByDistrict(""); // Mặc định hiển thị tất cả
-                }
+    public String removeAccent(String s) {
+        if (s == null) return "";
+        String temp = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD);
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
+        return pattern.matcher(temp).replaceAll("").toLowerCase().replaceAll("đ", "d");
+    }
+
+    private void updateMenuUI(MaterialButton selectedBtn) {
+        int[] ids = {R.id.btnAll, R.id.btnHoanKiem, R.id.btnBaDinh, R.id.btnTayHo, R.id.btnCauGiay, R.id.btnDongDa, R.id.btnHaiBaTrung};
+        for (int id : ids) {
+            MaterialButton btn = findViewById(id);
+            if (btn == null) continue;
+            if (btn == selectedBtn) {
+                btn.setBackgroundColor(Color.parseColor("#4CAF50"));
+                btn.setTextColor(Color.WHITE);
+                btn.setStrokeWidth(0);
+            } else {
+                btn.setBackgroundColor(Color.TRANSPARENT);
+                btn.setTextColor(Color.parseColor("#757575"));
+                btn.setStrokeColor(ColorStateList.valueOf(Color.parseColor("#DDDDDD")));
+                btn.setStrokeWidth(2);
             }
-            @Override
-            public void onFailure(Call<List<Hotel>> call, Throwable t) {}
-        });
+        }
     }
 
-    private void fetchAllHotels() {
-        apiService.getHotels().enqueue(new Callback<List<Hotel>>() {
-            @Override
-            public void onResponse(Call<List<Hotel>> call, Response<List<Hotel>> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    masterHotelList = response.body(); // LƯU VÀO BIẾN GỐC
-                    currentLat = 0.0; currentLng = 0.0;
-                    filterByDistrict(""); // Mặc định hiển thị tất cả
-                }
-            }
-            @Override
-            public void onFailure(Call<List<Hotel>> call, Throwable t) {}
-        });
-    }
-
-    // =====================================================================
-    // MENU BÊN TRÊN
-    // =====================================================================
     @Override
     public boolean onCreateOptionsMenu(android.view.Menu menu) {
         getMenuInflater().inflate(R.menu.main_menu, menu);
@@ -204,50 +237,15 @@ public class MainActivity extends AppCompatActivity {
         }
         return super.onOptionsItemSelected(item);
     }
-    // Hàm siêu đẳng: Biến "Tây Hồ" thành "tay ho", "Cầu Giấy" thành "cau giay"
-    // Hàm chuyển tiếng Việt có dấu thành không dấu
-    public String removeAccent(String s) {
-        if (s == null) return "";
-        String temp = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD);
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
-        return pattern.matcher(temp).replaceAll("").toLowerCase().replaceAll("đ", "d");
-    }
-    private void updateButtonStyles(Button selectedButton) {
-        // 1. Danh sách tất cả ID các nút menu của bạn
-        int[] btnIds = {R.id.btnAll, R.id.btnHoanKiem, R.id.btnBaDinh, R.id.btnTayHo, R.id.btnCauGiay, R.id.btnDongDa};
 
-        for (int id : btnIds) {
-            MaterialButton btn = findViewById(id);
-            if (btn == selectedButton) {
-                // Nút đang chọn: Nền xanh, chữ trắng
-                btn.setBackgroundColor(Color.parseColor("#4CAF50"));
-                btn.setTextColor(Color.WHITE);
-                btn.setStrokeColor(null);
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == LOCATION_PERMISSION_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                getLocationAndCallApi();
             } else {
-                // Nút không chọn: Nền trắng, viền xám, chữ xám
-                btn.setBackgroundColor(Color.TRANSPARENT);
-                btn.setTextColor(Color.parseColor("#555555"));
-                btn.setStrokeColor(ColorStateList.valueOf(Color.parseColor("#DDDDDD")));
-            }
-        }
-    }
-    private void updateMenuUI(MaterialButton selectedBtn) {
-        // Danh sách ID các nút
-        int[] ids = {R.id.btnAll, R.id.btnHoanKiem, R.id.btnBaDinh, R.id.btnTayHo};
-
-        for (int id : ids) {
-            MaterialButton btn = findViewById(id);
-            if (btn == selectedBtn) {
-                // Nút được chọn: Đổ nền xanh đặc, chữ trắng, mất viền
-                btn.setBackgroundColor(Color.parseColor("#4CAF50"));
-                btn.setTextColor(Color.WHITE);
-                btn.setStrokeWidth(0);
-            } else {
-                // Nút không chọn: Nền trắng, viền xám mảnh, chữ xám
-                btn.setBackgroundColor(Color.TRANSPARENT);
-                btn.setTextColor(Color.parseColor("#757575"));
-                btn.setStrokeColor(ColorStateList.valueOf(Color.parseColor("#DDDDDD")));
-                btn.setStrokeWidth(2); // Độ dày viền
+                fetchAllHotels();
             }
         }
     }

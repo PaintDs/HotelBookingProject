@@ -60,7 +60,6 @@
                 app:strokeColor="#E0E0E0"
                 app:strokeWidth="1dp"
                 app:cornerRadius="14dp" />
-
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnHaiBaTrung"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
@@ -116,12 +115,19 @@
         </LinearLayout>
     </HorizontalScrollView>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvHotels"
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefreshLayout"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:padding="8dp"
-        android:clipToPadding="false"
-        android:scrollbarStyle="outsideOverlay"/>
+        android:layout_height="match_parent">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvHotels"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="8dp"
+            android:clipToPadding="false"
+            android:scrollbarStyle="outsideOverlay"/>
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
 </LinearLayout>
