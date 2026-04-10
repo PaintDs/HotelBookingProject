@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.example.hotelbookingapp.Activities.DetailActivity;
+import com.example.hotelbookingapp.API.MyConfig;
 import com.example.hotelbookingapp.Model.Hotel;
 import com.example.hotelbookingapp.R;
 
@@ -31,7 +32,6 @@ public class HotelAdapter extends RecyclerView.Adapter<HotelAdapter.HotelViewHol
         this.currentLng = currentLng;
     }
 
-    // --- BỔ SUNG HÀM NÀY: NẾU THIẾU SẼ KHÔNG HIỆN DANH SÁCH ---
     @NonNull
     @Override
     public HotelViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -44,10 +44,8 @@ public class HotelAdapter extends RecyclerView.Adapter<HotelAdapter.HotelViewHol
         final Hotel h = hotelList.get(position);
         if (h == null) return;
 
-        // 1. Đổ dữ liệu text
         holder.tvName.setText(h.getName());
 
-        // Định dạng giá tiền chuyên nghiệp
         try {
             Double price = h.getPrice_per_night();
             if (price != null && price > 0) {
@@ -60,7 +58,6 @@ public class HotelAdapter extends RecyclerView.Adapter<HotelAdapter.HotelViewHol
             holder.tvPrice.setText("Giá: Liên hệ");
         }
 
-        // Hiển thị khoảng cách
         if (h.getDistance() != null && h.getDistance() > 0) {
             holder.tvDistance.setText("Đường chim bay: " + h.getDistance() + " km");
             holder.tvDistance.setVisibility(View.VISIBLE);
@@ -68,11 +65,10 @@ public class HotelAdapter extends RecyclerView.Adapter<HotelAdapter.HotelViewHol
             holder.tvDistance.setVisibility(View.GONE);
         }
 
-        // 2. Tải ảnh với Glide (Xử lý Ngrok/Localhost)
         String url = h.getImageUrl();
         if (url != null && !url.isEmpty()) {
-            // Fix link ảnh nếu dùng Ngrok (Đảm bảo link này vẫn còn sống nhé!)
-            url = url.replace("127.0.0.1:8000", "uncelebrated-lashandra-articulately.ngrok-free.dev");
+            // TỐI ƯU: Sử dụng MyConfig.SERVER_DOMAIN thay vì hardcode
+            url = url.replace("127.0.0.1:8000", MyConfig.SERVER_DOMAIN);
 
             Glide.with(holder.itemView.getContext())
                     .load(url)
@@ -81,15 +77,12 @@ public class HotelAdapter extends RecyclerView.Adapter<HotelAdapter.HotelViewHol
                     .into(holder.imgHotel);
         }
 
-        // 3. SỰ KIỆN CLICK: XEM CHI TIẾT
         holder.itemView.setOnClickListener(v -> {
             Intent intent = new Intent(v.getContext(), DetailActivity.class);
-            // TRUYỀN NGUYÊN OBJECT (Yêu cầu Hotel implements Serializable)
             intent.putExtra("hotel_data", h);
             v.getContext().startActivity(intent);
         });
 
-        // 4. SỰ KIỆN CLICK: CHỈ ĐƯỜNG
         holder.btnDirection.setOnClickListener(v -> {
             try {
                 String uri = "google.navigation:q=" + h.getLat() + "," + h.getLng();

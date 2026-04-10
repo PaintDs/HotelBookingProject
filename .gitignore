@@ -1,0 +1,22 @@
+# --- Backend (Python) ---
+.env
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# --- Android (Java/Kotlin) ---
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+/google-services.json
+
+# --- System Files ---
+.DS_Store
+Thumbs.db

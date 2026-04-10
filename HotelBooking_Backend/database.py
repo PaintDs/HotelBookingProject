@@ -24,3 +24,9 @@ def get_db():
         db.close()
 
 print("Kết nối Database thành công!")
+from dotenv import load_dotenv
+import os
+
+load_dotenv() # Tải các biến từ file .env vào hệ thống
+SECRET_KEY = os.getenv("SECRET_KEY")
+SQLALCHEMY_DATABASE_URL = os.getenv("DB_URL")

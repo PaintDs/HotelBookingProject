@@ -19,9 +19,11 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.example.hotelbookingapp.API.ApiService;
 import com.example.hotelbookingapp.API.MyConfig;
+import com.example.hotelbookingapp.API.RetrofitClient;
 import com.example.hotelbookingapp.Adapter.HotelAdapter;
 import com.example.hotelbookingapp.Model.Hotel;
 import com.example.hotelbookingapp.R;
+import com.example.hotelbookingapp.Utils.SharedPrefManager; 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.material.button.MaterialButton;
@@ -32,11 +34,8 @@ import java.util.List;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-import retrofit2.Retrofit;
-import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity {
-    // 1. Biến nhớ quận đang chọn (Quan trọng để giữ trạng thái khi reload)
     private String currentSelectedDistrict = "";
 
     private ApiService apiService;
@@ -54,39 +53,26 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Ánh xạ UI
         rv = findViewById(R.id.rvHotels);
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         rv.setLayoutManager(new LinearLayoutManager(this));
 
-        // Cấu hình SwipeRefresh
         swipeRefreshLayout.setColorSchemeColors(Color.parseColor("#4CAF50"), Color.BLUE);
         swipeRefreshLayout.setOnRefreshListener(() -> {
-            // Khi vuốt làm mới, giữ nguyên quận đang chọn nhưng tải lại data mới nhất
             checkLocationPermissionAndFetchData();
         });
 
-        // Network & GPS
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-        Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl(MyConfig.BASE_URL)
-                .addConverterFactory(GsonConverterFactory.create())
-                .build();
-        apiService = retrofit.create(ApiService.class);
+        
+        // TỐI ƯU: Sử dụng RetrofitClient thay vì tạo mới Builder
+        apiService = RetrofitClient.getRetrofitInstance().create(ApiService.class);
 
         setupFilterButtons();
-
-        // Mặc định làm sáng nút "Tất cả" khi mới vào App
         updateMenuUI(findViewById(R.id.btnAll));
-
         checkLocationPermissionAndFetchData();
     }
 
-    // =====================================================================
-    // XỬ LÝ BỘ LỌC (Cập nhật để lưu trạng thái)
-    // =====================================================================
     private void setupFilterButtons() {
-        // Mỗi khi click, gán giá trị vào currentSelectedDistrict để khi reload App sẽ nhớ
         findViewById(R.id.btnAll).setOnClickListener(v -> handleFilterClick("", (MaterialButton) v));
         findViewById(R.id.btnHoanKiem).setOnClickListener(v -> handleFilterClick("Hoàn Kiếm", (MaterialButton) v));
         findViewById(R.id.btnBaDinh).setOnClickListener(v -> handleFilterClick("Ba Đình", (MaterialButton) v));
@@ -94,12 +80,17 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btnDongDa).setOnClickListener(v -> handleFilterClick("Đống Đa", (MaterialButton) v));
         findViewById(R.id.btnCauGiay).setOnClickListener(v -> handleFilterClick("Cầu Giấy", (MaterialButton) v));
         findViewById(R.id.btnTayHo).setOnClickListener(v -> handleFilterClick("Tây Hồ", (MaterialButton) v));
+        
+        // Nút mở bản đồ
+        findViewById(R.id.fabMap).setOnClickListener(v -> {
+             startActivity(new Intent(this, MapsActivity.class));
+        });
     }
 
     private void handleFilterClick(String district, MaterialButton btn) {
-        currentSelectedDistrict = district; // Ghi nhớ quận
-        filterByDistrict(district);        // Lọc danh sách
-        updateMenuUI(btn);                 // Đổi màu nút
+        currentSelectedDistrict = district;
+        filterByDistrict(district);
+        updateMenuUI(btn);
     }
 
     private void filterByDistrict(String districtName) {
@@ -119,9 +110,6 @@ public class MainActivity extends AppCompatActivity {
         rv.setAdapter(adapter);
     }
 
-    // =====================================================================
-    // QUẢN LÝ GỌI API (Sửa để nhớ Filter sau khi Reload)
-    // =====================================================================
     private void fetchNearbyHotels(double lat, double lng) {
         swipeRefreshLayout.setRefreshing(true);
         apiService.getNearbyHotels(lat, lng).enqueue(new Callback<List<Hotel>>() {
@@ -130,8 +118,6 @@ public class MainActivity extends AppCompatActivity {
                 swipeRefreshLayout.setRefreshing(false);
                 if (response.isSuccessful() && response.body() != null) {
                     masterHotelList = response.body();
-
-                    // THAY ĐỔI: Thay vì mặc định "", dùng biến currentSelectedDistrict
                     filterByDistrict(currentSelectedDistrict);
                 }
             }
@@ -152,8 +138,6 @@ public class MainActivity extends AppCompatActivity {
                 if (response.isSuccessful() && response.body() != null) {
                     masterHotelList = response.body();
                     currentLat = 0.0; currentLng = 0.0;
-
-                    // THAY ĐỔI: Tự động lọc lại quận cũ sau khi tải xong data
                     filterByDistrict(currentSelectedDistrict);
                 }
             }
@@ -164,8 +148,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
-
-    // --- (Phần GPS, Menu, removeAccent giữ nguyên phía dưới) ---
 
     private void checkLocationPermissionAndFetchData() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -222,10 +204,37 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    public boolean onPrepareOptionsMenu(android.view.Menu menu) {
+        android.view.MenuItem accountItem = menu.findItem(R.id.action_account);
+        if (accountItem != null) {
+            if (SharedPrefManager.getInstance(this).isLoggedIn()) {
+                accountItem.setTitle("Đăng xuất (" + SharedPrefManager.getInstance(this).getFullName() + ")");
+            } else {
+                accountItem.setTitle("Đăng nhập");
+            }
+        }
+        return super.onPrepareOptionsMenu(menu);
+    }
+
+    @Override
     public boolean onOptionsItemSelected(@NonNull android.view.MenuItem item) {
         int id = item.getItemId();
-        if (id == R.id.menu_history) {
-            startActivity(new Intent(MainActivity.this, HistoryActivity.class));
+        if (id == R.id.action_account) {
+            if (SharedPrefManager.getInstance(this).isLoggedIn()) {
+                SharedPrefManager.getInstance(this).logout();
+                Toast.makeText(this, "Đã đăng xuất!", Toast.LENGTH_SHORT).show();
+                invalidateOptionsMenu();
+            } else {
+                startActivity(new Intent(MainActivity.this, LoginActivity.class));
+            }
+            return true;
+        } else if (id == R.id.menu_history) {
+            if (!SharedPrefManager.getInstance(this).isLoggedIn()) {
+                Toast.makeText(this, "Vui lòng đăng nhập để xem lịch sử!", Toast.LENGTH_SHORT).show();
+                startActivity(new Intent(MainActivity.this, LoginActivity.class));
+            } else {
+                startActivity(new Intent(MainActivity.this, HistoryActivity.class));
+            }
             return true;
         } else if (id == R.id.menu_about) {
             new android.app.AlertDialog.Builder(this)
@@ -236,6 +245,12 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        invalidateOptionsMenu();
     }
 
     @Override

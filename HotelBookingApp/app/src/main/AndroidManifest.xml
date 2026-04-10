@@ -14,13 +14,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.HotelBookingApp"
         android:usesCleartextTraffic="true">
-
         <activity
-            android:name=".Activities.HistoryActivity"
-            android:exported="false" />
-
-        <activity
-            android:name=".Activities.DetailActivity"
+            android:name=".Activities.RegisterActivity"
             android:exported="false" />
 
         <activity
@@ -31,6 +26,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".Activities.LoginActivity"
+            android:exported="true" />
+
+        <activity
+            android:name=".Activities.HistoryActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".Activities.DetailActivity"
+            android:exported="false" />
+
     </application>
 
 </manifest>

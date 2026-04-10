@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
+from pydantic import BaseModel, EmailStr
 
 # Khuôn cho đăng nhập
 class UserLogin(BaseModel):
@@ -20,3 +21,19 @@ class HotelResponse(BaseModel):
 
     class Config:
         from_attributes = True
+        # 1. Khung nhận data khi Đăng ký
+class UserCreate(BaseModel):
+    full_name: str
+    email: EmailStr
+    password: str
+
+# 2. Khung nhận data khi Đăng nhập
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+# 3. Khung trả về Token
+class TokenInfo(BaseModel):
+    access_token: str
+    token_type: str
+    full_name: str
