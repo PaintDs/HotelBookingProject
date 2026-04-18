@@ -6,7 +6,10 @@ from math import cos, asin, sqrt, pi
 from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone
 import jwt
+<<<<<<< HEAD
 import os
+=======
+>>>>>>> 166c5d19f55741cdb4aaf4d2c5246dbd8bcd6aac
 
 import models, schemas 
 from database import engine, get_db
@@ -20,7 +23,11 @@ app = FastAPI(title="Hotel Booking API with Auth")
 # 1. CẤU HÌNH BẢO MẬT
 # ==========================================
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+<<<<<<< HEAD
 SECRET_KEY = os.getenv("SECRET_KEY")
+=======
+SECRET_KEY = "day_la_chia_khoa_bi_mat_cua_ban_khong_cho_ai_biet"
+>>>>>>> 166c5d19f55741cdb4aaf4d2c5246dbd8bcd6aac
 ALGORITHM = "HS256"
 
 def get_password_hash(password):
