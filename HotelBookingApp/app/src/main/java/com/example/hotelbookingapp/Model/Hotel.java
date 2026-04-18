@@ -3,7 +3,7 @@ package com.example.hotelbookingapp.Model;
 import com.google.gson.annotations.SerializedName;
 import java.io.Serializable;
 
-public class Hotel implements Serializable {
+public class  Hotel implements Serializable {
 
     // 0. CHỐT CHẶN PHIÊN BẢN (QUAN TRỌNG NHẤT ĐỂ FIX LỖI CACHE)
     // Mỗi khi thay đổi Model, hãy đổi số này (ví dụ từ 1L lên 2L) để App buộc phải load lại dữ liệu mới
