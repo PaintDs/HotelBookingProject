@@ -1,17 +1,29 @@
-from pydantic import BaseModel
-from typing import Optional
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 
-# Khuôn cho đăng nhập
+# ==========================================
+# 1. KHUÔN CHO NGƯỜI DÙNG (USER)
+# ==========================================
+class UserCreate(BaseModel):
+    full_name: str
+    email: EmailStr
+    password: str
+
 class UserLogin(BaseModel):
     email: str
     password: str
 
-# Khuôn cho danh sách khách sạn - ĐÃ CẬP NHẬT PHÒNG THỦ
+class TokenInfo(BaseModel):
+    access_token: str
+    token_type: str
+    full_name: str
+
+# ==========================================
+# 2. KHUÔN CHO KHÁCH SẠN (HOTEL)
+# ==========================================
 class HotelResponse(BaseModel):
     id: int
     name: str
-    # Sử dụng Optional hoặc | None để tránh lỗi 500 nếu DB có dòng trống địa chỉ
     address: Optional[str] = "Chưa cập nhật địa chỉ" 
     price_per_night: float
     description: Optional[str] = None
@@ -21,19 +33,22 @@ class HotelResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        # 1. Khung nhận data khi Đăng ký
-class UserCreate(BaseModel):
-    full_name: str
-    email: EmailStr
-    password: str
 
-# 2. Khung nhận data khi Đăng nhập
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
+# ==========================================
+# 3. KHUÔN CHO LỊCH SỬ ĐẶT PHÒNG (BOOKING) - QUAN TRỌNG
+# ==========================================
+class BookingResponse(BaseModel):
+    id: int
+    hotel_name: str
+    customer_name: str
+    cccd: str
+    total_price: float
+    status: str  # <--- BẮT BUỘC PHẢI CÓ DÒNG NÀY ĐỂ FIX LỖI
 
-# 3. Khung trả về Token
-class TokenInfo(BaseModel):
-    access_token: str
-    token_type: str
-    full_name: str
+    class Config:
+        from_attributes = True
+
+# Khuôn nhận dữ liệu khi gọi API tạo QR thanh toán
+class PaymentRequest(BaseModel):
+    booking_id: int
+    amount: int

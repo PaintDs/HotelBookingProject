@@ -43,3 +43,4 @@ class Booking(Base):
     # FIX: Đảm bảo tên biến là user_email (viết thường, gạch dưới) 
     # để khớp 100% với @SerializedName("user_email") bên Android
     user_email = Column(String(255), nullable=True)
+    status = Column(String(50), default="Chưa thanh toán")

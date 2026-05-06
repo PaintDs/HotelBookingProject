@@ -134,6 +134,51 @@
                 android:textSize="15sp"
                 android:text="Đang tải thông tin mô tả chi tiết từ hệ thống..." />
 
+            <!-- ============================================== -->
+            <!-- BẮT ĐẦU PHẦN THÊM MỚI: PHƯƠNG THỨC THANH TOÁN -->
+            <!-- ============================================== -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="20dp"
+                android:background="#EEEEEE" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Phương thức thanh toán"
+                android:textColor="#1A1A1A"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp"/>
+
+            <RadioGroup
+                android:id="@+id/rgPaymentMethod"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="16dp">
+
+                <RadioButton
+                    android:id="@+id/rbPayOnArrival"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Thanh toán khi nhận phòng"
+                    android:textSize="15sp"
+                    android:textColor="#444444"
+                    android:checked="true" /> <!-- Mặc định tích chọn cái này -->
+
+                <RadioButton
+                    android:id="@+id/rbPayOnline"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Chuyển khoản trực tuyến (Quét QR)"
+                    android:textSize="15sp"
+                    android:textColor="#444444" />
+            </RadioGroup>
+            <!-- KẾT THÚC PHẦN THÊM MỚI -->
+
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 

@@ -13,6 +13,7 @@ import com.example.hotelbookingapp.Model.BookingModel;
 import com.example.hotelbookingapp.R;
 import com.example.hotelbookingapp.Utils.SharedPrefManager;
 
+import java.util.ArrayList;
 import java.util.List;
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -23,6 +24,7 @@ public class HistoryActivity extends AppCompatActivity {
     private RecyclerView rvHistory;
     private HistoryAdapter adapter;
     private ApiService apiService;
+    private List<BookingModel> bookingList; // Khai báo list ở mức toàn cục
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,34 +34,42 @@ public class HistoryActivity extends AppCompatActivity {
         rvHistory = findViewById(R.id.rvHistory);
         rvHistory.setLayoutManager(new LinearLayoutManager(this));
 
-        apiService = RetrofitClient.getRetrofitInstance().create(ApiService.class);
+        // 1. Khởi tạo Adapter với list rỗng ngay từ đầu để tránh lỗi giật lag UI
+        bookingList = new ArrayList<>();
+        // Truyền thêm 'this' (Context) vào Adapter để lát nữa gọi Intent chuyển sang màn hình Thanh toán (nếu cần)
+        adapter = new HistoryAdapter(this, bookingList);
+        rvHistory.setAdapter(adapter);
 
+        apiService = RetrofitClient.getRetrofitInstance().create(ApiService.class);
+    }
+
+    // 2. DỜI HÀM LOAD DỮ LIỆU VÀO onResume()
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Mỗi khi màn hình này hiện lên (ví dụ: từ màn hình Payment quay lại), nó sẽ tự động tải lại danh sách mới nhất.
         loadBookingHistory();
     }
 
     private void loadBookingHistory() {
-        // ============================================================
-        // BƯỚC QUAN TRỌNG NHẤT: Lấy email từ Két sắt (SharedPref)
-        // ============================================================
         String emailCuaToi = SharedPrefManager.getInstance(this).getEmail();
 
-        if (emailCuaToi.isEmpty()) {
+        if (emailCuaToi == null || emailCuaToi.isEmpty()) {
             Toast.makeText(this, "Lỗi: Không tìm thấy Email người dùng!", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // TRUYỀN emailCuaToi VÀO ĐÂY ĐỂ SERVER BIẾT ĐƯỜNG MÀ LỌC
         apiService.getBookingHistory(emailCuaToi).enqueue(new Callback<List<BookingModel>>() {
             @Override
             public void onResponse(Call<List<BookingModel>> call, Response<List<BookingModel>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    List<BookingModel> list = response.body();
 
-                    // Nếu danh sách rỗng, adapter sẽ tự hiện trắng (hoặc bạn có thể báo Toast)
-                    adapter = new HistoryAdapter(list);
-                    rvHistory.setAdapter(adapter);
+                    // 3. Cập nhật dữ liệu thông minh
+                    bookingList.clear(); // Xóa list cũ
+                    bookingList.addAll(response.body()); // Đổ list mới từ API vào
+                    adapter.notifyDataSetChanged(); // Ra lệnh cho RecyclerView vẽ lại giao diện
 
-                    if (list.isEmpty()) {
+                    if (bookingList.isEmpty()) {
                         Toast.makeText(HistoryActivity.this, "Bạn chưa có đơn đặt phòng nào.", Toast.LENGTH_SHORT).show();
                     }
                 } else {
@@ -69,7 +79,7 @@ public class HistoryActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<List<BookingModel>> call, Throwable t) {
-                Toast.makeText(HistoryActivity.this, "Lỗi kết nối mạng!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(HistoryActivity.this, "Lỗi kết nối mạng: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
     }

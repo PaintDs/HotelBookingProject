@@ -11,6 +11,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.RadioGroup;
 import android.widget.RatingBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -54,6 +55,7 @@ public class DetailActivity extends AppCompatActivity {
         apiService = RetrofitClient.getRetrofitInstance().create(ApiService.class);
 
         // 2. ÁNH XẠ UI
+        RadioGroup rgPaymentMethod;
         ImageView imgDetail = findViewById(R.id.imgDetail);
         TextView tvName = findViewById(R.id.tvNameDetail);
         TextView tvAddress = findViewById(R.id.tvAddressDetail);
@@ -62,6 +64,7 @@ public class DetailActivity extends AppCompatActivity {
         EditText edtName = findViewById(R.id.edtCustomerName);
         EditText edtCccd = findViewById(R.id.edtCccd);
         Button btnBook = findViewById(R.id.btnBook);
+        rgPaymentMethod = findViewById(R.id.rgPaymentMethod);
 
         tvName.setText(hotel.getName());
         tvAddress.setText(hotel.getAddress());
@@ -126,7 +129,6 @@ public class DetailActivity extends AppCompatActivity {
 
             // ĐÓNG GÓI REQUEST
             BookingRequest request = new BookingRequest(
-
                     hotel.getId(),
                     hotel.getName(),
                     inputName,
@@ -147,16 +149,43 @@ public class DetailActivity extends AppCompatActivity {
                                 .putString(KEY_CCCD, inputCccd)
                                 .apply();
 
-                        new AlertDialog.Builder(DetailActivity.this)
-                                .setTitle("🎉 Đặt thành công!")
-                                .setMessage("Thông tin đã được gửi cho tài khoản: " + userEmail)
-                                .setCancelable(false)
-                                .setPositiveButton("Xem lịch sử", (dialog, which) -> {
-                                    startActivity(new Intent(DetailActivity.this, HistoryActivity.class));
-                                    finish();
-                                })
-                                .setNegativeButton("OK", (dialog, which) -> finish())
-                                .show();
+                        // ========================================================
+                        // BẮT ĐẦU RẼ NHÁNH XỬ LÝ PHƯƠNG THỨC THANH TOÁN
+                        // ========================================================
+                        int selectedPaymentId = rgPaymentMethod.getCheckedRadioButtonId();
+
+                        if (selectedPaymentId == R.id.rbPayOnline) {
+                            // KỊCH BẢN 1: KHÁCH CHỌN CHUYỂN KHOẢN ONLINE (QUÉT QR)
+                            Intent intent = new Intent(DetailActivity.this, PaymentActivity.class);
+
+                            // Gửi giá tiền của khách sạn này sang màn hình QR
+                            // Chuyển giá tiền thành String để gửi đi cho an toàn
+                            intent.putExtra("AMOUNT_STR", String.valueOf(hotel.getPrice_per_night()));
+
+                            // Tạm thời lấy ID của khách sạn làm mã đơn hàng hiển thị trên QR
+                            // (Nếu API backend của bạn có trả về mã Booking ID thật thì bóc tách từ response.body() ra nhé)
+                            intent.putExtra("BOOKING_ID", hotel.getId());
+
+                            startActivity(intent);
+                            finish(); // Đóng màn hình Detail lại
+
+                        } else {
+                            // KỊCH BẢN 2: KHÁCH CHỌN THANH TOÁN KHI NHẬN PHÒNG (TIỀN MẶT)
+                            new AlertDialog.Builder(DetailActivity.this)
+                                    .setTitle("🎉 Đặt thành công!")
+                                    .setMessage("Thông tin đã được gửi cho tài khoản: " + userEmail + "\n\nPhương thức: Thanh toán khi nhận phòng.")
+                                    .setCancelable(false)
+                                    .setPositiveButton("Xem lịch sử", (dialog, which) -> {
+                                        startActivity(new Intent(DetailActivity.this, HistoryActivity.class));
+                                        finish();
+                                    })
+                                    .setNegativeButton("OK", (dialog, which) -> finish())
+                                    .show();
+                        }
+                        // ========================================================
+                        // KẾT THÚC RẼ NHÁNH
+                        // ========================================================
+
                     } else {
                         Toast.makeText(DetailActivity.this, "Lỗi Server: " + response.code(), Toast.LENGTH_SHORT).show();
                     }
