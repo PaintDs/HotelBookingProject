@@ -14,6 +14,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.bumptech.glide.Glide;
+import com.example.hotelbookingapp.API.MyConfig;
 import com.example.hotelbookingapp.R;
 
 public class PaymentActivity extends AppCompatActivity {
@@ -90,7 +91,11 @@ public class PaymentActivity extends AppCompatActivity {
         // 5. TÍCH HỢP SOCKET.IO ĐỂ LẮNG NGHE THANH TOÁN
         // ==========================================
         try {
-            mSocket = IO.socket("http://192.168.100.116:5000");
+            // Chúng ta tận dụng SERVER_DOMAIN từ MyConfig
+            // Thêm "https://" vào đầu vì Ngrok chạy giao thức bảo mật
+            String socketUrl = "https://" + MyConfig.SERVER_DOMAIN;
+
+            mSocket = IO.socket(socketUrl);
         } catch (URISyntaxException e) {
             e.printStackTrace();
         }
