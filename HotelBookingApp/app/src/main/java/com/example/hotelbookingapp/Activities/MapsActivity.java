@@ -5,10 +5,12 @@ import android.preference.PreferenceManager;
 import android.util.Log;
 import androidx.appcompat.app.AppCompatActivity;
 
+// Thêm import cấu hình API và Retrofit Client của bạn
+import com.example.hotelbookingapp.API.ApiService;
+import com.example.hotelbookingapp.API.RetrofitClient;
+import com.example.hotelbookingapp.Model.Hotel;
 import com.example.hotelbookingapp.R;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
 import org.osmdroid.api.IMapController;
 import org.osmdroid.config.Configuration;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
@@ -18,20 +20,23 @@ import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class MapsActivity extends AppCompatActivity {
 
     private MapView map = null;
+    private ApiService apiService; //Khai báo biến apiService toàn cục ở đây
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Load cấu hình OSM
+        // Bổ sung User-Agent định danh bắt buộc để OpenStreetMap không chặn hiển thị khi dùng 5G
+        Configuration.getInstance().setUserAgentValue(getPackageName());
         Configuration.getInstance().load(this, PreferenceManager.getDefaultSharedPreferences(this));
         setContentView(R.layout.activity_maps);
 
@@ -42,73 +47,67 @@ public class MapsActivity extends AppCompatActivity {
         IMapController mapController = map.getController();
         mapController.setZoom(14.0);
 
-        // 1. Tọa độ trung tâm ban đầu (Hà Nội)
+        // 1. Tọa độ trung tâm ban đầu cố định tại Hà Nội
         GeoPoint startPoint = new GeoPoint(21.0285, 105.8542);
         mapController.setCenter(startPoint);
 
-        // 2. Hiển thị vị trí người dùng
+        // 2. Hiển thị ghim vị trí hiện tại của người dùng
         MyLocationNewOverlay locationOverlay = new MyLocationNewOverlay(new GpsMyLocationProvider(this), map);
         locationOverlay.enableMyLocation();
-        locationOverlay.enableFollowLocation();
+
+        // Đã tắt lệnh dưới đây để phục vụ đúng luồng "Toàn cảnh".
+        // Tránh việc bản đồ tự động giật camera theo GPS của máy làm lệch khỏi trung tâm 30 khách sạn.
+        // locationOverlay.enableFollowLocation();
+
         map.getOverlays().add(locationOverlay);
+
+        //  Khởi tạo apiService chạy qua OkHttpClient bypass Ngrok
+        apiService = RetrofitClient.getRetrofitInstance().create(ApiService.class);
 
         // 3. GỌI API LẤY TOÀN BỘ KHÁCH SẠN VÀ VẼ MARKER
         fetchAllHotelsFromAPI();
     }
 
     private void fetchAllHotelsFromAPI() {
-        // Chạy ngầm (Background Thread) để không làm đơ App khi gọi mạng
-        new Thread(() -> {
-            try {
-                // CHÚ Ý: Đảm bảo IP này khớp với IP máy tính chạy main.py (cổng 8000)
-                URL url = new URL("http://192.168.100.116:8000/hotels");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("GET");
+        // SỬ DỤNG RETROFIT: Tự động chạy luồng ngầm, tự bóc tách GSON an toàn chống OOM
+        apiService.getHotels().enqueue(new Callback<List<Hotel>>() {
+            @Override
+            public void onResponse(Call<List<Hotel>> call, Response<List<Hotel>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<Hotel> hotels = response.body();
 
-                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                StringBuilder response = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    response.append(line);
-                }
-                reader.close();
+                    // Duyệt mảng vẽ Marker từ danh sách Object sạch
+                    for (Hotel hotel : hotels) {
+                        double lat = hotel.getLat();
+                        double lng = hotel.getLng();
+                        String name = hotel.getName();
+                        double price = hotel.getPrice_per_night();
 
-                // Chuyển chuỗi JSON trả về thành mảng JSONArray
-                JSONArray jsonArray = new JSONArray(response.toString());
-
-                // Đẩy dữ liệu lên giao diện (Main Thread)
-                runOnUiThread(() -> {
-                    // DÙNG VÒNG LẶP ĐỂ VẼ TẤT CẢ KHÁCH SẠN
-                    for (int i = 0; i < jsonArray.length(); i++) {
-                        try {
-                            JSONObject hotel = jsonArray.getJSONObject(i);
-
-                            // Lấy dữ liệu từ API
-                            double lat = hotel.getDouble("lat");
-                            double lng = hotel.getDouble("lng");
-                            String name = hotel.getString("name");
-                            int price = hotel.getInt("price_per_night");
-
-                            // Chỉ vẽ nếu tọa độ hợp lệ (khác 0)
-                            if (lat != 0 && lng != 0) {
-                                addHotelMarker(lat, lng, name, "Giá: " + price + " VNĐ");
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
+                        // Kiểm tra tọa độ hợp lệ trước khi cắm ghim
+                        if (lat != 0.0 && lng != 0.0) {
+                            addHotelMarker(lat, lng, name, "Giá: " + price + " VNĐ");
                         }
                     }
 
-                    // LỆNH QUAN TRỌNG: Vẽ lại bản đồ sau khi cắm hết Marker
+                    // LỆNH QUAN TRỌNG: Ép OpenStreetMap vẽ lại toàn bộ Marker vừa nạp
                     map.invalidate();
-                });
+                    Log.d("MAP_SUCCESS", "Đã vẽ thành công toàn bộ khách sạn lên Map!");
 
-            } catch (Exception e) {
-                Log.e("MAP_ERROR", "Lỗi lấy dữ liệu API: " + e.getMessage());
+                } else {
+                    Log.e("MAP_ERROR", "Server trả về lỗi hoặc JSON trống: " + response.code());
+                }
             }
-        }).start();
+
+            @Override
+            public void onFailure(Call<List<Hotel>> call, Throwable t) {
+                // Bắt các lỗi đứt mạng, Timeout khi dùng 5G/Wifi trường
+                Log.e("MAP_ERROR", "Lỗi kết nối API mạng: " + t.getMessage());
+            }
+        });
     }
 
     private void addHotelMarker(double lat, double lng, String name, String price) {
+        if (map == null) return;
         Marker hotelMarker = new Marker(map);
         hotelMarker.setPosition(new GeoPoint(lat, lng));
         hotelMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);

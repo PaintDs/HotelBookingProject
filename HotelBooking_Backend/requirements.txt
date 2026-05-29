@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+sqlalchemy
+mysql-connector-python
+python-dotenv
+passlib[bcrypt]
+PyJWT
+flask
+flask-socketio
+email-validator

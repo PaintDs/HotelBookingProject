@@ -7,6 +7,7 @@ from math import cos, asin, sqrt, pi
 from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone
 import jwt
+import socketio  # 🌟 FIX: Thêm thư viện Socket.IO
 from dotenv import load_dotenv
 
 import models, schemas 
@@ -22,6 +23,20 @@ ALGORITHM = "HS256"
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Hotel Booking API with Auth")
+
+# ==========================================
+# 🌟 CẤU HÌNH SOCKET.IO SERVER (ASGI BỌC FASTAPI)
+# ==========================================
+sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
+socket_app = socketio.ASGIApp(sio, other_asgi_app=app)
+
+@sio.event
+async def connect(sid, environ):
+    print(f"--- THIẾT BỊ KẾT NỐI SOCKET THÀNH CÔNG: {sid} ---")
+
+@sio.event
+async def disconnect(sid):
+    print(f"--- THIẾT BỊ NGẮT KẾT NỐI SOCKET: {sid} ---")
 
 # ==========================================
 # 1. CẤU HÌNH BẢO MẬT
@@ -131,7 +146,7 @@ def create_booking(booking: BookingCreate, db: Session = Depends(get_db)):
             cccd=booking.cccd,
             total_price=booking.total_price,
             user_email=booking.user_email,
-            status="Chưa thanh toán"  # <--- Trạng thái mặc định
+            status="Chưa thanh toán"
         )
         db.add(new_booking)
         db.commit()
@@ -151,7 +166,6 @@ def get_bookings(user_email: str, db: Session = Depends(get_db)):
     
     bookings = db.query(models.Booking).filter(models.Booking.user_email == email_clean).all()
     
-    # Tạo danh sách JSON chuẩn để Android Studio hiểu được giá tiền và trạng thái
     result = []
     for b in bookings:
         result.append({
